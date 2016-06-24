@@ -1,0 +1,175 @@
+% pxCJK.sty
+
+%% package declaration
+\NeedsTeXFormat{pLaTeX2e}
+\ProvidesPackage{pxCJKutf8}[2016/06/22 v0.1]
+
+%% preparations
+\def\pxcu@pkgname{pxCJKutf8}
+\newif\ifpxcu@ok
+\newif\ifpxcu@forced
+\newif\ifpxcu@early@CJK
+\providecommand*\bxDebug[1]{}
+
+%--------------------------------------- handle options
+
+% 'forced'
+\DeclareOption{forced}{%
+  \pxcu@forcedtrue}
+% process
+\ProcessOptions\relax
+
+%% check if CJK is already loaded
+\@ifpackageloaded{CJK}{%
+  \pxcu@early@CJKtrue
+}{}
+
+%--------------------------------------- helpers for patch
+
+%% \pxcu@check@selectfont
+\@onlypreamble\pxcu@check@selectfont
+\def\pxcu@check@selectfont{%
+  \edef\pxcu@tmpa{\noexpand\in@
+    {\string\kenc@update}{\meaning\pxcu@selectfont}%
+  }\pxcu@tmpa
+  \pxcu@okfalse
+  \ifin@ \pxcu@oktrue \fi}
+
+%% \pxcu@patch@selectfont
+\@onlypreamble\pxcu@patch@selectfont
+\def\pxcu@patch@selectfont{%
+  \pxcu@okfalse
+  \expandafter\pxcu@patch@selectfont@a\pxcu@selectfont
+    \pxcu@mk\font@name\enc@update\pxcu@mk\pxcu@end}
+\def\pxcu@patch@selectfont@a#1\font@name\enc@update
+    #2\pxcu@mk#3\pxcu@end{%
+  \ifx\pxcu@mk#3\pxcu@mk\else
+    \def\pxcu@selectfont{%
+      #1\font@name
+      % inserted CJK extension
+      \expandafter\ifx\csname CJK@\curr@fontshape\endcsname\relax\else
+        \CJK@bold@false
+        \csname CJK@\curr@fontshape\endcsname
+      \fi
+      % end
+      \enc@update#2}%
+    \pxcu@oktrue
+  \fi}
+
+%% \pxcu@plcore@selectfont
+% The plcore version of \[selectfont ].
+\@onlypreamble\pxcu@plcore@selectfont
+\def\pxcu@plcore@selectfont{%
+  \let\tmp@error@fontshape\error@fontshape
+  \let\error@fontshape\error@kfontshape
+  \edef\tmp@item{{\k@encoding}}%
+  \expandafter\expandafter\expandafter
+  \inlist@\expandafter\tmp@item\expandafter{\kyenc@list}%
+  \ifin@
+    \let\cy@encoding\k@encoding
+    \edef\ct@encoding{\csname t@enc@\k@encoding\endcsname}%
+  \else
+    \expandafter\expandafter\expandafter
+    \inlist@\expandafter\tmp@item\expandafter{\ktenc@list}%
+    \ifin@
+      \let\ct@encoding\k@encoding
+      \edef\cy@encoding{\csname y@enc@\k@encoding\endcsname}%
+    \else
+      \@latex@error{KANJI Encoding scheme `\k@encoding' unknown}\@eha
+    \fi
+  \fi
+  \let\font\tfont
+  \let\k@encoding\ct@encoding
+  \xdef\font@name{\csname\curr@kfontshape/\f@size\endcsname}%
+  \pickup@font
+  \font@name
+  \let\font\jfont
+  \let\k@encoding\cy@encoding
+  \xdef\font@name{\csname\curr@kfontshape/\f@size\endcsname}%
+  \pickup@font
+  \font@name
+  \expandafter\def\expandafter\k@encoding\tmp@item
+  \kenc@update
+  \let\error@fontshape\tmp@error@fontshape
+  \if@knjcmd \@knjcmdfalse
+    \expandafter\ifx
+    \csname rel@\k@encoding/\k@family/\k@series/\k@shape\endcsname\relax
+      \expandafter\ifx
+         \csname rel@\k@encoding/\k@family/\k@series/all\endcsname\relax
+      \else
+         \csname rel@\k@encoding/\k@family/\k@series/all\endcsname
+      \fi
+    \else
+       \csname rel@\k@encoding/\k@family/\k@series/\k@shape\endcsname
+    \fi
+  \fi
+  \let\font\afont
+  \xdef\font@name{\csname\curr@fontshape/\f@size\endcsname}%
+  \pickup@font
+  \font@name
+  \enc@update
+  \ifx\f@linespread\baselinestretch \else
+    \set@fontsize\baselinestretch\f@size\f@baselineskip
+  \fi
+  \size@update}
+
+%--------------------------------------- main
+
+%% save the current definition
+\expandafter\let\expandafter\pxcu@selectfont\csname selectfont \endcsname
+
+%% load the package
+\RequirePackage{CJKutf8}[]
+
+%% the process
+\let\selectfont\relax
+\DeclareRobustCommand*\selectfont{}
+\begingroup
+  \ifpxcu@early@CJK
+    \bxDebug{CJK is earlily loaded}%
+    \ifpxcu@forced\else
+      \PackageError\pxcu@pkgname
+       {CJK package is already loaded}
+       {You must load this package before CJK package.%
+        \MessageBreak\@ehc}
+    \fi
+    \bxDebug{revert to plcore version}%
+    \let\pxcu@selectfont\pxcu@plcore@selectfont
+    \pxcu@patch@selectfont
+  \else
+    \bxDebug{CJK is NOT earlily loaded}%
+    \pxcu@check@selectfont
+    \ifpxcu@ok
+      \bxDebug{precheck OK}
+      \pxcu@patch@selectfont
+    \fi
+    \ifpxcu@ok
+      \bxDebug{patch OK!}
+    \else % patch failure
+      \ifpxcu@forced
+        \PackageWarning\pxcu@pkgname
+         {Failed in patching to \string\selectfont,\MessageBreak
+          occurred}
+      \else
+        \PackageError\pxcu@pkgname
+         {Failed in patching to \string\selectfont}
+         {Some of the packages in use is incompatible with this package.%
+          \MessageBreak\@ehc}
+      \fi
+      \bxDebug{revert to plcore version}%
+      \let\pxcu@selectfont\pxcu@plcore@selectfont
+      \pxcu@patch@selectfont
+    \fi
+  \fi
+  \ifpxcu@ok % it should be ok
+    \bxDebug{Patch commit}
+    \global\expandafter\let\csname selectfont \endcsname\pxcu@selectfont
+  \else
+    \PackageError\pxcu@pkgname
+     {Something went wrong}\@ehc
+  \fi
+\endgroup
+
+%--------------------------------------- done
+\endinput
+%% EOF
