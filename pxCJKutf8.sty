@@ -3,9 +3,9 @@
 %% package declaration
 \NeedsTeXFormat{pLaTeX2e}
 \ProvidesPackage{pxCJKutf8}[2016/06/22 v0.1]
-
-%% preparations
 \def\pxcu@pkgname{pxCJKutf8}
+
+%% variables
 \newif\ifpxcu@ok
 \newif\ifpxcu@forced
 \newif\ifpxcu@early@CJK
@@ -19,12 +19,19 @@
 % process
 \ProcessOptions\relax
 
+%--------------------------------------- environment check
+
+%% check engine
+\ifx\kanjiskip\@undefined
+  % silently abort
+\expandafter\endinput\fi\relax
+
 %% check if CJK is already loaded
 \@ifpackageloaded{CJK}{%
   \pxcu@early@CJKtrue
 }{}
 
-%--------------------------------------- helpers for patch
+%--------------------------------------- preparation for patch
 
 %% \pxcu@check@selectfont
 \@onlypreamble\pxcu@check@selectfont
@@ -41,6 +48,7 @@
   \pxcu@okfalse
   \expandafter\pxcu@patch@selectfont@a\pxcu@selectfont
     \pxcu@mk\font@name\enc@update\pxcu@mk\pxcu@end}
+\@onlypreamble\pxcu@patch@selectfont@a
 \def\pxcu@patch@selectfont@a#1\font@name\enc@update
     #2\pxcu@mk#3\pxcu@end{%
   \ifx\pxcu@mk#3\pxcu@mk\else
@@ -113,9 +121,10 @@
   \fi
   \size@update}
 
-%--------------------------------------- main
+%--------------------------------------- patch to \selectfont
 
 %% save the current definition
+\@onlypreamble\pxcu@selectfont
 \expandafter\let\expandafter\pxcu@selectfont\csname selectfont \endcsname
 
 %% load the package
@@ -169,6 +178,15 @@
      {Something went wrong}\@ehc
   \fi
 \endgroup
+
+%--------------------------------------- begin-CJK hook
+
+%% begin-CJK-hook
+\providecommand*{\CJKhook}{}
+\ifx\disablecjktoken\@undefind\else
+\g@addto@macro\CJKhook{%
+  \disablecjktoken}
+\fi
 
 %--------------------------------------- done
 \endinput
